@@ -194,21 +194,27 @@ def field_text(context):
         if not key:
             raise ValueError("TYPE_TEXT needs TEXT_MODEL_API_KEY; no text is hardcoded or guessed by the executor.")
         base = os.environ.get("TEXT_MODEL_BASE_URL", "https://api.deepseek.com/v1").rstrip("/")
-        reasoning = (
-            {"thinking": {"type": "disabled"}}
-            if "api.deepseek.com/" in base
-            else {"reasoning": {"effort": "low"}}
-        )
-        if os.environ.get("TEXT_MODEL_REASONING") == "none":
-            reasoning = {"reasoning": {"enabled": False}}
+        if "api.inceptionlabs.ai/" in base:
+            settings = {
+                "max_completion_tokens": 1024,
+                "reasoning_effort": os.environ.get("TEXT_MODEL_REASONING", "instant"),
+            }
+        else:
+            reasoning = (
+                {"thinking": {"type": "disabled"}}
+                if "api.deepseek.com/" in base
+                else {"reasoning": {"effort": "low"}}
+            )
+            if os.environ.get("TEXT_MODEL_REASONING") == "none":
+                reasoning = {"reasoning": {"enabled": False}}
+            settings = {"max_tokens": 1024, **reasoning}
         result = post_json(
             base + "/chat/completions",
             key,
             {
                 "model": model,
-                "max_tokens": 1024,
+                **settings,
                 "response_format": {"type": "json_object"},
-                **reasoning,
                 "messages": [
                     {"role": "system", "content": TEXT_VALUE},
                     {"role": "user", "content": json.dumps(context)},

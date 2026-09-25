@@ -65,7 +65,7 @@ Open **http://127.0.0.1:8766** and click **Start demo → Run automatically**. T
 
 Chrome connects through [Browser Harness](https://github.com/browser-use/browser-harness), installed by `uv sync`. Run `uv run browser-harness --doctor` if it needs connecting. Allow remote debugging in Chrome when prompted.
 
-The default text helper runs `codex exec` with your ChatGPT login (`codex login status` checks it), so it needs no text-model API key. It uses a temporary empty working directory, read-only sandbox, and no user configuration. This adds Codex CLI startup latency to each `TYPE_TEXT` step; the published speed measurements used `inception/mercury-2.5`, not Codex. To use an OpenAI-compatible text model instead, set `TEXT_MODEL`, `TEXT_MODEL_BASE_URL`, and `TEXT_MODEL_API_KEY` in `.env`.
+The default text helper runs `codex exec` with your ChatGPT login (`codex login status` checks it), so it needs no text-model API key. It uses a temporary empty working directory, read-only sandbox, and no user configuration. This adds Codex CLI startup latency to each `TYPE_TEXT` step; the published speed measurements used `inception/mercury-2.5`, not Codex. To use Inception directly instead, set `TEXT_MODEL=mercury-2.5`, `TEXT_MODEL_BASE_URL=https://api.inceptionlabs.ai/v1`, `TEXT_MODEL_REASONING=instant`, and `TEXT_MODEL_API_KEY` in `.env`.
 
 ## Use the library
 

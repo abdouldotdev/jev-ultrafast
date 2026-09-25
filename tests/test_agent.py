@@ -170,6 +170,18 @@ def test_codex_text_uses_chatgpt_login_without_api_key(monkeypatch):
     assert run.call_args.kwargs["cwd"]
 
 
+def test_inception_text_uses_native_reasoning_setting(monkeypatch):
+    monkeypatch.setenv("TEXT_MODEL", "mercury-2.5")
+    monkeypatch.setenv("TEXT_MODEL_API_KEY", "test")
+    monkeypatch.setenv("TEXT_MODEL_BASE_URL", "https://api.inceptionlabs.ai/v1")
+    monkeypatch.setenv("TEXT_MODEL_REASONING", "instant")
+    post = Mock(return_value={"choices": [{"message": {"content": '{"text":"Zurich"}'}}]})
+    monkeypatch.setattr(model, "post_json", post)
+    assert model.field_text({"goal": "Fly from Zurich"})[0] == "Zurich"
+    assert post.call_args.args[2]["reasoning_effort"] == "instant"
+    assert post.call_args.args[2]["max_completion_tokens"] == 1024
+
+
 @pytest.fixture
 def runner():
     a = loop.Agent.__new__(loop.Agent)
