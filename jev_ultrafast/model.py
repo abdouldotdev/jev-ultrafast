@@ -1,8 +1,10 @@
-"""TypeSafe makes choices; an optional small OpenAI-compatible model writes field values."""
+"""TypeSafe makes choices; a text helper writes field values."""
 
 import json
 import math
 import os
+import subprocess
+import tempfile
 import time
 
 import httpx
@@ -158,32 +160,61 @@ def field_context(goal, action, page, history):
 
 
 def field_text(context):
-    key = os.environ.get("TEXT_MODEL_API_KEY")
-    if not key:
-        raise ValueError("TYPE_TEXT needs TEXT_MODEL_API_KEY; no text is hardcoded or guessed by the executor.")
-    base = os.environ.get("TEXT_MODEL_BASE_URL", "https://api.deepseek.com/v1").rstrip("/")
-    model = os.environ.get("TEXT_MODEL", "deepseek-chat")
-    reasoning = {"thinking": {"type": "disabled"}} if "api.deepseek.com/" in base else {"reasoning": {"effort": "low"}}
-    if os.environ.get("TEXT_MODEL_REASONING") == "none":
-        reasoning = {"reasoning": {"enabled": False}}
+    model = os.environ.get("TEXT_MODEL", "codex")
     started = time.perf_counter()
-    result = post_json(
-        base + "/chat/completions",
-        key,
-        {
-            "model": model,
-            "max_tokens": 1024,
-            "response_format": {"type": "json_object"},
-            **reasoning,
-            "messages": [
-                {"role": "system", "content": TEXT_VALUE},
-                {
-                    "role": "user",
-                    "content": json.dumps(context),
-                },
-            ],
-        },
-    )
+    if model == "codex":
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                completed = subprocess.run(
+                    [
+                        "codex", "exec", "--ignore-user-config", "--ephemeral", "--skip-git-repo-check",
+                        "--sandbox", "read-only", "-",
+                    ],
+                    input=TEXT_VALUE + "\n\nContext:\n" + json.dumps(context),
+                    cwd=directory,
+                    env={
+                        key: os.environ[key]
+                        for key in ("HOME", "PATH", "CODEX_HOME", "TMPDIR", "LANG")
+                        if key in os.environ
+                    },
+                    capture_output=True,
+                    text=True,
+                    timeout=90,
+                    check=False,
+                )
+        except FileNotFoundError:
+            raise RuntimeError("Codex CLI is not installed; no text typed.") from None
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Codex text helper timed out; no text typed.") from None
+        if completed.returncode:
+            raise RuntimeError("Codex text helper failed; check 'codex login status'; no text typed.")
+        result = {"choices": [{"message": {"content": completed.stdout}}]}
+    else:
+        key = os.environ.get("TEXT_MODEL_API_KEY")
+        if not key:
+            raise ValueError("TYPE_TEXT needs TEXT_MODEL_API_KEY; no text is hardcoded or guessed by the executor.")
+        base = os.environ.get("TEXT_MODEL_BASE_URL", "https://api.deepseek.com/v1").rstrip("/")
+        reasoning = (
+            {"thinking": {"type": "disabled"}}
+            if "api.deepseek.com/" in base
+            else {"reasoning": {"effort": "low"}}
+        )
+        if os.environ.get("TEXT_MODEL_REASONING") == "none":
+            reasoning = {"reasoning": {"enabled": False}}
+        result = post_json(
+            base + "/chat/completions",
+            key,
+            {
+                "model": model,
+                "max_tokens": 1024,
+                "response_format": {"type": "json_object"},
+                **reasoning,
+                "messages": [
+                    {"role": "system", "content": TEXT_VALUE},
+                    {"role": "user", "content": json.dumps(context)},
+                ],
+            },
+        )
     try:
         output = json.loads(result["choices"][0]["message"]["content"])
         value = output["text"]

@@ -141,6 +141,7 @@ def test_target_head_receives_control_state_and_full_next_step_rules(monkeypatch
 
 
 def test_quoted_task_text_still_uses_the_llm(monkeypatch):
+    monkeypatch.setenv("TEXT_MODEL", "deepseek-chat")
     monkeypatch.setenv("TEXT_MODEL_API_KEY", "test")
     post = Mock(return_value={"choices": [{"message": {"content": '{"text":"Zurich"}'}}]})
     monkeypatch.setattr(model, "post_json", post)
@@ -152,9 +153,21 @@ def test_quoted_task_text_still_uses_the_llm(monkeypatch):
 
 
 def test_missing_text_credential_stops_before_guessing(monkeypatch):
+    monkeypatch.setenv("TEXT_MODEL", "deepseek-chat")
     monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
     with pytest.raises(ValueError, match="TEXT_MODEL_API_KEY"):
         model.field_text({"goal": 'Enter "Zurich"'})
+
+
+def test_codex_text_uses_chatgpt_login_without_api_key(monkeypatch):
+    monkeypatch.setenv("TEXT_MODEL", "codex")
+    monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
+    run = Mock(return_value=Mock(returncode=0, stdout='{"text":"Zurich"}'))
+    monkeypatch.setattr(model.subprocess, "run", run)
+    assert model.field_text({"goal": 'Enter "Zurich"'})[0] == "Zurich"
+    assert run.call_args.args[0][:2] == ["codex", "exec"]
+    assert "read-only" in run.call_args.args[0]
+    assert run.call_args.kwargs["cwd"]
 
 
 @pytest.fixture
@@ -306,6 +319,7 @@ def test_flight_verification_rejects_wrong_trip(changed):
     "content", ["Thinking: Zurich", '{"text":null}', '{"text":"Zurich","extra":true}', '{"text":123}']
 )
 def test_text_helper_rejects_invalid_values(monkeypatch, content):
+    monkeypatch.setenv("TEXT_MODEL", "deepseek-chat")
     monkeypatch.setenv("TEXT_MODEL_API_KEY", "test")
     monkeypatch.setattr(model, "post_json", Mock(return_value={"choices": [{"message": {"content": content}}]}))
     with pytest.raises(ValueError, match="nothing typed"):
