@@ -12,6 +12,7 @@ from browser_harness.helpers import cdp
 # Atomically read visible content and controls, preserving actual DOM node identity.
 READ_STATE = Path(__file__).with_name("snapshot.js").read_text()
 MARKER = f"(() => {{ const state={READ_STATE}; return state?.marker ?? null; }})()"
+CDP_TIMEOUT = 15
 
 class StalePage(ValueError):
     """A decision no longer refers to the observed page."""
@@ -33,7 +34,7 @@ class Browser:
             time.sleep(0.02)
 
     def call(self, method, **params):
-        return cdp(method, session_id=self.session, **params)
+        return cdp(method, session_id=self.session, _response_timeout=CDP_TIMEOUT, **params)
 
     def evaluate(self, expression):
         response = self.call("Runtime.evaluate", expression=expression, returnByValue=True)
@@ -122,7 +123,7 @@ def browser_operation(request):
     session = request["session"]
 
     def call(method, **params):
-        return cdp(method, session_id=session, **params)
+        return cdp(method, session_id=session, _response_timeout=CDP_TIMEOUT, **params)
 
     def evaluate(expression):
         result = call("Runtime.evaluate", expression=expression, returnByValue=True)

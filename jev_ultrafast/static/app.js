@@ -3,12 +3,16 @@ const token = document.querySelector('meta[name="demo-token"]').content;
 let state = null,
   busy = false,
   automatic = false;
+const flightDate = new Date(Date.now() + 30 * 864e5).toLocaleDateString("en-US", {
+  month: "long", day: "numeric", year: "numeric",
+});
 const goals = {
-  flights: 'Find one-way flights from Zurich to London on September 20, 2026, for one adult in economy. Stop when matching flight options are visible. Do not select or book a flight.',
+  flights: `Find one-way flights from Zurich to London on ${flightDate}, for one adult in economy. Stop when matching flight options are visible. Do not select or book a flight.`,
   travel: 'Find a Design stay in Lisbon with Free cancellation and open Casa Flora.',
   research:
     "Open the article about using finite choices to control browser agents.",
 };
+$("goal").value = goals.flights;
 const escape = (value) =>
   String(value ?? "").replace(
     /[&<>"']/g,
